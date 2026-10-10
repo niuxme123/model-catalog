@@ -12,4 +12,4 @@ tags:
   - tool-use
   - fp8
 source:
-  hf: zai-org/GLM-5.3-Uncensored-FP8
+  hf: dealignai/GLM-5.3-UNCENSORED-FP8
