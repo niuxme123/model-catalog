@@ -1,6 +1,11 @@
+# GLM-5.3-UNCENSORED-FP8 (dealignai/GLM-5.3-UNCENSORED-FP8) in FP8, on the
+# glm5.3 family. This is a different HF repo than the one metadata.yaml names
+# (nvidia/GLM-5.3-NVFP4), so model.localPath is set explicitly: the site
+# profile would otherwise derive the NVFP4 path from source.hf.
 apiVersion: catalog.swiss/v1
-name: glm5.3-uncensored-fp8
+name: glm5.3-uncensored-fp8-pp2-h100
 version: 1.0.0
+servedName: glm5.3-uncensored-fp8
 variants:
   - id: sglang-tp8-pp2-h100
     default: true
@@ -23,6 +28,7 @@ variants:
         - NVIDIA-H100-80GB-HBM3
     values:
       model:
+        localPath: /mnt/disk0/models/GLM-5.3-UNCENSORED-FP8
         mountPath: /model
         hostPathType: Directory
         contextLength: ""
