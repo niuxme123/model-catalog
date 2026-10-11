@@ -27,6 +27,17 @@ variants:
       gpuProduct:
         - NVIDIA-H100-80GB-HBM3
     values:
+      # The FP8 kernels in this build need driver 610.43.02 (NVIDIA-SMI).
+      # Pin scheduling to nodes carrying that driver label.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: nvidia.com/cuda.driver-version.full
+                    operator: In
+                    values:
+                      - "610.43.02"
       model:
         localPath: /mnt/disk0/models/GLM-5.3-Flash-UNCENSORED-FP8
         mountPath: /model
