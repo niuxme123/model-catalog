@@ -1,0 +1,93 @@
+# GLM-5.3-Flash-UNCENSORED-FP8 (dealignai/GLM-5.3-Flash-UNCENSORED-FP8).
+# metadata.yaml's source.hf names the official zai-org/GLM-5.3-Flash repo, so
+# model.localPath is set explicitly instead of being derived from source.hf.
+# Mirrored from the docker run deploy (sglang glm-5.3-flash image, port 8050).
+apiVersion: catalog.swiss/v2
+kind: Variant
+model: glm-5.3-flash
+id: sglang-tp8-uncensored-h100
+version: 1.0.0
+servedName: glm-5.3-flash
+description: >-
+  TP8 on eight H100 GPUs, single node, multimodal video input enabled
+  (fps 2 sampling).
+engine: sglang
+chart:
+  name: sglang
+  version: ">=0.7.1"
+image:
+  repository: harbor.4pd.io/hardcore-tech/sglang
+  tag: glm-5.3-flash
+requires:
+  gpus: 8
+  topology: single-node
+  gpuProduct:
+    - NVIDIA-H100-80GB-HBM3
+values:
+  model:
+    localPath: /mnt/disk0/models/GLM-5.3-Flash-UNCENSORED-FP8
+    mountPath: /model
+    hostPathType: Directory
+    contextLength: ""
+  modelCheck:
+    enabled: true
+    requiredGlobs:
+      - config.json
+      - "*.safetensors"
+  extraArgs:
+    - --chat-template=/model/chat_template.jinja
+    - --tp-size=8
+    - --trust-remote-code
+    - --chunked-prefill-size=8192
+    - --max-prefill-tokens=32768
+    - --mem-fraction-static=0.83
+    - --reasoning-parser=glm45
+    - --tool-call-parser=glm47
+    - --enable-cache-report
+    - --stream-response-default-include-usage
+    - --enable-metrics
+    - '--mm-process-config={"video":{"fps":1,"max_frames":64}}'
+    - --mm-processor-worker-num=4
+    - --mm-io-worker-num=16
+  env:
+    - name: NVIDIA_DISABLE_REQUIRE
+      value: "1"
+    - name: PYTORCH_ALLOC_CONF
+      value: expandable_segments:True
+  volumes:
+    - name: dot-cache
+      emptyDir:
+        sizeLimit: 10Gi
+    - name: dshm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 32Gi
+  volumeMounts:
+    - name: dot-cache
+      mountPath: /root/.cache
+    - name: dshm
+      mountPath: /dev/shm
+  resources:
+    requests:
+      ephemeral-storage: 16Gi
+    limits:
+      ephemeral-storage: 16Gi
+  service:
+    port: 8050
+  progressDeadlineSeconds: 7200
+  startupProbe:
+    httpGet:
+      path: /health
+      port: http
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 180
+  terminationGracePeriodSeconds: 3600
+  lifecycle:
+    preStop:
+      drainSeconds: 600
+      pollIntervalSeconds: 5
+    forceShutdown: true
+    preStopKill: true
+  hangWatcher:
+    enabled: true
