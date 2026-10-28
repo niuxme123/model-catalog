@@ -1,0 +1,121 @@
+# Variant from the modelforge Qwen3.6-35B-A3B-793303-glm-5 build, served as
+# "glm-5". metadata.yaml's source.hf names the upstream Qwen weights, so
+# model.localPath is set explicitly instead of being derived from source.hf.
+# Mirrored from the production Deployment modelforge-01-glm (sglang
+# v0.5.10.post1, 4 replicas of TP2, 262k context).
+apiVersion: catalog.swiss/v2
+kind: Variant
+model: qwen3.6-35b-a3b
+id: sglang-tp2-a100-glm5
+version: 1.0.0
+servedName: glm-5
+description: >-
+  TP2 on two A100 GPUs, single node, 262k context, modelforge glm-5 build,
+  mamba extra_buffer scheduler, lru radix eviction.
+engine: sglang
+chart:
+  name: sglang
+  version: ">=0.7.1"
+image:
+  repository: harbor-contest.4pd.io/lijiashu/sglang
+  tag: v0.5.10.post1
+requires:
+  gpus: 2
+  topology: single-node
+  gpuProduct:
+    - NVIDIA-A100-SXM4-80GB
+values:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                  - NVIDIA-A100-SXM4-80GB
+              - key: nvidia.com/cuda.driver-version.full
+                operator: In
+                values:
+                  - "575.57.08"
+  model:
+    localPath: /mnt/disk0/models/modelforge/Qwen3.6-35B-A3B-793303-glm-5
+    mountPath: /model
+    hostPathType: Directory
+    contextLength: ""
+  modelCheck:
+    enabled: true
+    requiredGlobs:
+      - config.json
+      - "*.safetensors"
+  extraArgs:
+    - --context-length=262144
+    - --enable-metrics
+    - --tp-size=2
+    - --mem-fraction-static=0.85
+    - --radix-eviction-policy=lru
+    - --mamba-scheduler-strategy=extra_buffer
+    - --page-size=64
+    - --chunked-prefill-size=16384
+    - --trust-remote-code
+    - --enable-cache-report
+    - --stream-response-default-include-usage
+    - --reasoning-parser=qwen3
+    - --tool-call-parser=qwen3_coder
+  env:
+    - name: SGLANG_ENABLE_HEALTH_ENDPOINT_GENERATION
+      value: "false"
+    - name: SGLANG_FORCE_SHUTDOWN
+      value: "1"
+    - name: SGL_FORCE_SHUTDOWN
+      value: "1"
+    - name: PYTORCH_ALLOC_CONF
+      value: expandable_segments:True
+    - name: NCCL_DEBUG
+      value: WARN
+    - name: SGLANG_MOE_CONFIG_DIR
+      value: /moe-config
+  volumes:
+    - name: dot-cache
+      emptyDir:
+        sizeLimit: 10Gi
+    - name: moe-config
+      hostPath:
+        path: /root/deploy/modelforge-moe-config-merged
+        type: Directory
+    - name: dshm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 16Gi
+  volumeMounts:
+    - name: dot-cache
+      mountPath: /root/.cache
+    - name: moe-config
+      mountPath: /moe-config
+      readOnly: true
+    - name: dshm
+      mountPath: /dev/shm
+  resources:
+    requests:
+      ephemeral-storage: 16Gi
+    limits:
+      ephemeral-storage: 16Gi
+  service:
+    port: 8050
+  progressDeadlineSeconds: 2400
+  startupProbe:
+    httpGet:
+      path: /v1/models
+      port: http
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 80
+  terminationGracePeriodSeconds: 3600
+  lifecycle:
+    preStop:
+      drainSeconds: 600
+      pollIntervalSeconds: 5
+    forceShutdown: true
+    preStopKill: true
+  hangWatcher:
+    enabled: true
